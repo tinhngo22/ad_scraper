@@ -211,17 +211,28 @@ def scrapeFile(url: str):
 
 
 def main() -> None:
-    # scrape for target urls
+    '''
+    - use 1. to scrape all pages from category
+    - use 2. to scrape each page from targets (fetch)
+    - use 3. for rescraping with local html failures
+    - use 4. to write data to raw.json
+    '''
+    # 1. scrape for target urls
     # scrapeURL()
 
-    # scrape each page from targets
+
+
+    # 2. scrape each page from targets
     # with open('data/targets.csv', mode='r', encoding='utf-8') as file:
     #     urls = csv.reader(file)
     #     for url in urls:
-    #         scrapePage(url[0])
+    #         result = scrapePage(url[0])
+    #         if(result):
+    #             data.append(result)
 
 
-    # parsing entries from html doc (no fetching)
+
+    # 3. parsing entries from html doc (no fetching)
     path = Path("./data/pages")
     data = []
     for item in path.iterdir():
@@ -229,6 +240,7 @@ def main() -> None:
         if(result):
             data.append(result)
 
+    # 4. write all scraped results to raw.json
     with open("data/raw.json", "a") as f:
         json.dump(data,f,indent=4)
 
