@@ -1,0 +1,43 @@
+# Python bytecode / caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+.env/
+
+# Environment variable files / secrets
+.env
+.env.*
+*.pem
+*.key
+credentials*.json
+token*.json
+
+# Test / type / lint caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Build / packaging
+build/
+dist/
+*.egg-info/
+
+# Logs
+*.log
+
+# Scraped/generated data outputs
+data/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+
