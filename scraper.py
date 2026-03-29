@@ -91,13 +91,12 @@ def _fetch_html(url: str, session: Optional[requests.Session] = None) -> Optiona
     return soup
 
 
-def scrapeURL() -> None:
+def scrapeURL(url: str) -> None:
     """
     Scrape category page for target links with verification.
     """
     session = _create_session()
-    url = "https://en.wikipedia.org/wiki/Category:Tourist_attractions_in_Abu_Dhabi"
-
+    results = []
     soup = _fetch_html(url, session=session)
     if soup is None:
         print("Failed to fetch or verify category page HTML.")
@@ -118,20 +117,18 @@ def scrapeURL() -> None:
         print("No links found inside category content; possible layout change or block.")
         return
 
-    with open("data/targets.csv", "a", encoding="utf-8") as targets:
-        for page in pages:
-            href = page.get("href")
-            # Basic verification for scraped links
-            if not href or not href.startswith("/wiki/"):
-                continue
-
-            targets.write(f"{href}\n")
-            print(href)
+    for page in pages:
+        href = page.get("href")
+        # Basic verification for scraped links
+        if not href or not href.startswith("/wiki/"):
+            continue
+        results.append(href)
+    return results
 
 
 def scrapePage(url: str, session: Optional[requests.Session] = None):
     """
-    Scrape a single Wikipedia page for its infobox and raw HTML.
+    Scrape a single Wikipedia page for its infobox and body text and raw HTML.
 
     Includes simple verification that an infobox exists before writing.
     """
@@ -143,6 +140,9 @@ def scrapePage(url: str, session: Optional[requests.Session] = None):
         print(f"Skipping {url}: failed to fetch or verify HTML.")
         return
 
+    #extract title
+    title = soup.find("span",attrs={"class":"mw-page-title-main"})
+
     # Sanitize URL into a safe file name
     file_name = url.replace("wiki/", "")
 
@@ -150,26 +150,35 @@ def scrapePage(url: str, session: Optional[requests.Session] = None):
     with open(f"data/pages/{file_name}.csv", "a", encoding="utf-8") as page:
         page.write(soup.prettify())
 
-    # Extract and verify infobox content
-    infobox = soup.find("table", attrs={"class": "infobox"})
-    if infobox is None:
-        print(f"No infobox found for {url}; skipping structured data write.")
-        return
+    if title is None:
+        print(f"No title found for {url}; skipping structured data write.")
+    
+    infobox = soup.find("table",attrs={"class":"infobox"})
+    text_content = None
 
-    rows = infobox.find_all("tr")
-    if not rows:
-        print(f"Infobox for {url} has no rows; skipping structured data write.")
-        return
+    if infobox is not None:
+        rows = infobox.find_all("tr")
+        text_content = infobox.get_text(separator=" ", strip=True)
+    else:
+        print(f"No infobox found for {url}")
+ 
 
-    text_content = infobox.get_text(separator=" ", strip=True)
-    if not text_content:
-        print(f"Infobox for {url} appears empty after cleanup; skipping.")
-        return
+
+    #extract body text
+    body_text = soup.find("div", attrs={"class": "mw-page-container"}).find_all("p")
+    body_text_content = None
+    if body_text is not None:
+        body_text_content = "\n".join([p.get_text(separator=" ", strip=True) for p in body_text])
+    else:
+        print(f"Body text for {url} not found")
+
+
 
     entry = {
         "raw_html":url,
         "name": title.get_text(separator=" ", strip=True),
-        "infobox_text":text_content
+        "infobox_text":text_content,
+        "body_text":body_text_content
     }
     return entry
 
@@ -181,68 +190,36 @@ def scrapeFile(url: str):
             print("error")
             return
     title = soup.find("span",attrs={"class":"mw-page-title-main"})
-    infobox = soup.find("table",attrs={"class":"infobox"})
-
+    
     if title is None:
         print(f"No title found for {url}; skipping structured data write.")
-        return
+    
+    infobox = soup.find("table",attrs={"class":"infobox"})
+    text_content = None
 
-    if infobox is None:
-        print(f"No infobox found for {url}; skipping structured data write.")
-        return
+    if infobox is not None:
+        rows = infobox.find_all("tr")
+        text_content = infobox.get_text(separator=" ", strip=True)
+    else:
+        print(f"No infobox found for {url}")
+ 
 
-    rows = infobox.find_all("tr")
-    if not rows:
-        print(f"Infobox for {url} has no rows; skipping structured data write.")
-        return
 
-    text_content = infobox.get_text(separator=" ", strip=True)
-    if not text_content:
-        print(f"Infobox for {url} appears empty after cleanup; skipping.")
-        return
+    #extract body text
+    body_text = soup.find("div", attrs={"class": "mw-page-container"}).find_all("p")
+    body_text_content = None
+    if body_text is not None:
+        body_text_content = "\n".join([p.get_text(separator=" ", strip=True) for p in body_text])
+    else:
+        print(f"Body text for {url} not found")
+
+
 
     entry = {
         "raw_html":url,
         "name": title.get_text(separator=" ", strip=True),
-        "infobox_text":text_content
+        "infobox_text":text_content,
+        "body_text":body_text_content
     }
     return entry
     
-
-
-def main() -> None:
-    '''
-    - use 1. to scrape all pages from category
-    - use 2. to scrape each page from targets (fetch)
-    - use 3. for rescraping with local html failures
-    - use 4. to write data to raw.json
-    '''
-    # 1. scrape for target urls
-    # scrapeURL()
-
-
-
-    # 2. scrape each page from targets
-    # with open('data/targets.csv', mode='r', encoding='utf-8') as file:
-    #     urls = csv.reader(file)
-    #     for url in urls:
-    #         result = scrapePage(url[0])
-    #         if(result):
-    #             data.append(result)
-
-
-
-    # 3. parsing entries from html doc (no fetching)
-    path = Path("./data/pages")
-    data = []
-    for item in path.iterdir():
-        result = scrapeFile(str(item))
-        if(result):
-            data.append(result)
-
-    # 4. write all scraped results to raw.json
-    with open("data/raw.json", "a") as f:
-        json.dump(data,f,indent=4)
-
-if __name__ == "__main__":
-    main()

@@ -6,37 +6,26 @@ from typing import List, Optional
 import pathlib
 import json
 
+def extractData(file, FieldData: BaseModel):
+    client = genai.Client()
+    results = []
 
-filepath = pathlib.Path('./data/raw.json')
-with open(filepath, 'r') as f:
-    file = json.load(f)
+    for item in file:
+        prompt = f"Here is the raw data content:\n{item}.Extract the JSON object for the field data. If fields are missing, use 'NA'."
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents = prompt,
+                config={
+                    "response_mime_type": "application/json",
+                    "response_json_schema": FieldData.model_json_schema(),
+                },
+            )
 
-
-
-class Attraction(BaseModel):
-    name: str = Field(description="The official name of the attraction")
-    place_type: str = Field(description="The category of place (e.g., Museum, Theme Park, Mosque)")
-    containedInPlace: str = Field(description="The larger area or island where it is located (e.g., Saadiyat Island, Yas Island)")
-    open_year: str = Field(description="The year when the attraction opened")
-
-client = genai.Client()
-
-
-for item in file:
-    prompt = f"Here is the raw data content:\n{item}.Extract the JSON object for the attraction. If fields are missing, use 'NA'."
-    try:
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents = prompt,
-            config={
-                "response_mime_type": "application/json",
-                "response_json_schema": Attraction.model_json_schema(),
-            },
-        )
-
-        attraction = Attraction.model_validate_json(response.text)
-
-        print(attraction)
-        
-    except errors.ServerError as e:
-        raise e
+            data = FieldData.model_validate_json(response.text)
+            results.append(data.model_dump())
+            print(data)
+            
+        except errors.ServerError as e:
+            raise e
+    return results
